@@ -2,7 +2,6 @@ import cv2
 import numpy as np
 from collections import deque
 
-# pixel to cm calibration ratio (adjust to your setup)
 RATIO = 10 / 142
 
 # minimum contour area in pixels to ignore noise
