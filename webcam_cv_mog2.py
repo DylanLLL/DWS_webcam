@@ -1,8 +1,14 @@
+#webcam_cv_mog2.py — detects and measures the largest object in the webcam feed using MOG2 background subtraction.
 import cv2
 import numpy as np
 from collections import deque
+import multiprocessing
 
-RATIO = 10 / 142
+RATIO = 23 / 370
+
+# physical distance from top camera lens to table surface, in cm.
+# Measure this once with a ruler.
+D_FLOOR_TOP = 60.0    
 
 # minimum contour area in pixels to ignore noise
 MIN_AREA = 2000
@@ -102,62 +108,82 @@ def draw_oriented_bbox(frame, contour, ratio):
                 cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
     cv2.putText(frame, f"H: {h_cm:.2f} cm", (int(cx) - 70, int(cy) + 18),
                 cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+    
+# main() wraps everything so launcher.py can pass in shared_h
+def main(shared_h=None):
 
+    global mog2, _bbox_history
 
-cap = cv2.VideoCapture(2)
+    cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
 
-if not cap.isOpened():
-    print("Error: could not open camera.")
-    exit(1)
+    if not cap.isOpened():
+        print("Error: could not open camera.")
+        return
 
-if CAMERA_WIDTH and CAMERA_HEIGHT:
-    cap.set(cv2.CAP_PROP_FRAME_WIDTH,  CAMERA_WIDTH)
-    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, CAMERA_HEIGHT)
-    actual_w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-    actual_h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    print(f"Camera resolution: {actual_w}x{actual_h}"
-          f"  (requested {CAMERA_WIDTH}x{CAMERA_HEIGHT})")
+    if CAMERA_WIDTH and CAMERA_HEIGHT:
+        cap.set(cv2.CAP_PROP_FRAME_WIDTH,  CAMERA_WIDTH)
+        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, CAMERA_HEIGHT)
+        actual_w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        actual_h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        print(f"Camera resolution: {actual_w}x{actual_h}"
+            f"  (requested {CAMERA_WIDTH}x{CAMERA_HEIGHT})")
 
-print("Keep the scene EMPTY while the background model warms up.")
-print("Controls:  R = reset background model   ESC = quit")
+    print("Keep the scene EMPTY while the background model warms up.")
+    print("Controls:  R = reset background model   ESC = quit")
 
-frame_count = 0
+    frame_count = 0
 
-while True:
-    ret, frame = cap.read()
-    if not ret:
-        print("Error: failed to read frame.")
-        break
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            print("Error: failed to read frame.")
+            break
 
-    key = cv2.waitKey(1)
-    if key == 27:  # ESC
-        break
-    if key == ord('r') or key == ord('R'):
-        mog2 = make_subtractor()
-        _bbox_history.clear()
-        frame_count = 0
-        print("Background model reset — keep scene empty during warmup.")
+        key = cv2.waitKey(1)
+        if key == 27:  # ESC
+            break
+        if key == ord('r') or key == ord('R'):
+            mog2 = make_subtractor()
+            _bbox_history.clear()
+            frame_count = 0
+            print("Background model reset — keep scene empty during warmup.")
 
-    frame_count += 1
+        frame_count += 1
 
-    if frame_count <= WARMUP_FRAMES:
-        # Train MOG2 on the empty background (learning rate -1 = auto)
-        mog2.apply(frame, learningRate=-1)
-        remaining = WARMUP_FRAMES - frame_count
-        cv2.putText(frame, f"Learning background... ({remaining} frames left)",
-                    (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.65, (0, 255, 0), 2)
-    else:
-        contour = segment_largest_object(frame, learning_rate=0)
-
-        if contour is not None:
-            cv2.drawContours(frame, [contour], -1, (255, 80, 0), 1)
-            draw_oriented_bbox(frame, contour, RATIO)
+        if frame_count <= WARMUP_FRAMES:
+            # Train MOG2 on the empty background (learning rate -1 = auto)
+            mog2.apply(frame, learningRate=-1)
+            remaining = WARMUP_FRAMES - frame_count
+            cv2.putText(frame, f"Learning background... ({remaining} frames left)",
+                        (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.65, (0, 255, 0), 2)
         else:
-            cv2.putText(frame, "No object detected  (R to reset background)",
-                        (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
+            # NEW: read H from side camera; default to 0.0 if unavailable
+            h_object = shared_h.value if shared_h is not None else 0.0 
 
-    cv2.imshow("frame", frame)
+            # NEW: compute corrected ratio based on object height
+            ratio_corrected = RATIO * (1.0 - h_object / D_FLOOR_TOP)     
 
-cap.release()
-cv2.destroyAllWindows()
+            contour = segment_largest_object(frame, learning_rate=0)
+
+            if contour is not None:
+                cv2.drawContours(frame, [contour], -1, (255, 80, 0), 1)
+                draw_oriented_bbox(frame, contour, ratio_corrected)
+                # NEW: show the live H and corrected ratio on screen for debugging
+                cv2.putText(frame, f"obj H: {h_object:.2f} cm",           
+                            (10, 30), cv2.FONT_HERSHEY_SIMPLEX,           
+                            0.6, (255, 255, 0), 2)                        
+                cv2.putText(frame, f"ratio: {ratio_corrected:.5f}",       
+                            (10, 58), cv2.FONT_HERSHEY_SIMPLEX,           
+                            0.6, (255, 255, 0), 2)                        
+            else:
+                cv2.putText(frame, "No object detected  (R to reset background)",
+                            (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
+
+        cv2.imshow("frame", frame)
+
+    cap.release()
+    cv2.destroyAllWindows()
+
+if __name__ == "__main__":                     
+    main()
 # This code uses MOG2 background subtraction to detect the largest moving object in the webcam feed,

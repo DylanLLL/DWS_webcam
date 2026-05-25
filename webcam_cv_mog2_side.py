@@ -1,6 +1,8 @@
+# webcam_cv_mog2_side.py — measures object height from a side view using MOG2 background subtraction.
 import cv2
 import numpy as np
 from collections import deque
+import multiprocessing 
 
 # pixel to cm calibration ratio (adjust to your setup)
 RATIO = 10 / 142
@@ -98,73 +100,82 @@ def draw_side_bbox(frame, contour, ratio, floor_y):
                 cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
     cv2.putText(frame, f"D: {d_cm:.2f} cm", (cx - 70, cy + 18),
                 cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+    return h_cm
 
+# NEW: main() wraps everything so launcher.py can pass in shared_h
+def main(shared_h=None):                      
 
-cap = cv2.VideoCapture(2)
+    global mog2, _bbox_history, FLOOR_Y
 
-if not cap.isOpened():
-    print("Error: could not open camera.")
-    exit(1)
+    cap = cv2.VideoCapture(2)
 
-if CAMERA_WIDTH and CAMERA_HEIGHT:
-    cap.set(cv2.CAP_PROP_FRAME_WIDTH,  CAMERA_WIDTH)
-    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, CAMERA_HEIGHT)
-    actual_w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-    actual_h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    print(f"Camera resolution: {actual_w}x{actual_h}"
-          f"  (requested {CAMERA_WIDTH}x{CAMERA_HEIGHT})")
+    if not cap.isOpened():
+        print("Error: could not open camera.")
+        exit(1)
 
-print("Keep the scene EMPTY while the background model warms up.")
-print("Controls:  F = set floor line   R = reset background model   ESC = quit")
+    if CAMERA_WIDTH and CAMERA_HEIGHT:
+        cap.set(cv2.CAP_PROP_FRAME_WIDTH,  CAMERA_WIDTH)
+        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, CAMERA_HEIGHT)
+        actual_w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        actual_h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        print(f"Camera resolution: {actual_w}x{actual_h}"
+            f"  (requested {CAMERA_WIDTH}x{CAMERA_HEIGHT})")
 
-frame_count = 0
+    print("Keep the scene EMPTY while the background model warms up.")
+    print("Controls:  F = set floor line   R = reset background model   ESC = quit")
 
-while True:
-    ret, frame = cap.read()
-    if not ret:
-        print("Error: failed to read frame.")
-        break
+    frame_count = 0
 
-    key = cv2.waitKey(1)
-    if key == 27:  # ESC
-        break
-    if key == ord('r') or key == ord('R'):
-        mog2 = make_subtractor()
-        _bbox_history.clear()
-        frame_count = 0
-        print("Background model reset — keep scene empty during warmup.")
-    if key == ord('f') or key == ord('F'):
-        contour_now = segment_largest_object(frame, learning_rate=0)
-        if contour_now is not None:
-            _, by_now, _, bh_now = cv2.boundingRect(contour_now)
-            FLOOR_Y = by_now + bh_now
-            print(f"Floor line set at y={FLOOR_Y} px")
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            print("Error: failed to read frame.")
+            break
+
+        key = cv2.waitKey(1)
+        if key == 27:  # ESC
+            break
+        if key == ord('r') or key == ord('R'):
+            mog2 = make_subtractor()
+            _bbox_history.clear()
+            frame_count = 0
+            print("Background model reset — keep scene empty during warmup.")
+        if key == ord('f') or key == ord('F'):
+            contour_now = segment_largest_object(frame, learning_rate=0)
+            if contour_now is not None:
+                _, by_now, _, bh_now = cv2.boundingRect(contour_now)
+                FLOOR_Y = by_now + bh_now
+                print(f"Floor line set at y={FLOOR_Y} px")
+            else:
+                print("No object detected — place object on surface first, then press F.")
+
+        frame_count += 1
+
+        if frame_count <= WARMUP_FRAMES:
+            mog2.apply(frame, learningRate=-1)
+            remaining = WARMUP_FRAMES - frame_count
+            cv2.putText(frame, f"Learning background... ({remaining} frames left)",
+                        (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.65, (0, 255, 0), 2)
         else:
-            print("No object detected — place object on surface first, then press F.")
+            contour = segment_largest_object(frame, learning_rate=0)
 
-    frame_count += 1
+            if contour is not None:
+                cv2.drawContours(frame, [contour], -1, (255, 80, 0), 1)
+                draw_side_bbox(frame, contour, RATIO, FLOOR_Y)
+            else:
+                cv2.putText(frame, "No object detected  (R to reset background)",
+                            (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
 
-    if frame_count <= WARMUP_FRAMES:
-        mog2.apply(frame, learningRate=-1)
-        remaining = WARMUP_FRAMES - frame_count
-        cv2.putText(frame, f"Learning background... ({remaining} frames left)",
-                    (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.65, (0, 255, 0), 2)
-    else:
-        contour = segment_largest_object(frame, learning_rate=0)
+        if FLOOR_Y is not None:
+            cv2.line(frame, (0, FLOOR_Y), (frame.shape[1], FLOOR_Y), (0, 165, 255), 1)
+            cv2.putText(frame, "floor", (5, FLOOR_Y - 5),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 165, 255), 1)
 
-        if contour is not None:
-            cv2.drawContours(frame, [contour], -1, (255, 80, 0), 1)
-            draw_side_bbox(frame, contour, RATIO, FLOOR_Y)
-        else:
-            cv2.putText(frame, "No object detected  (R to reset background)",
-                        (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
+        cv2.imshow("side camera - height", frame)
 
-    if FLOOR_Y is not None:
-        cv2.line(frame, (0, FLOOR_Y), (frame.shape[1], FLOOR_Y), (0, 165, 255), 1)
-        cv2.putText(frame, "floor", (5, FLOOR_Y - 5),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 165, 255), 1)
+    cap.release()
+    cv2.destroyAllWindows()
 
-    cv2.imshow("side camera - height", frame)
-
-cap.release()
-cv2.destroyAllWindows()
+# NEW: allows running this file standalone (shared_h defaults to None)
+if __name__ == "__main__":
+    main()
