@@ -5,7 +5,7 @@ from collections import deque
 import multiprocessing 
 
 # pixel to cm calibration ratio (adjust to your setup)
-RATIO = 10 / 142
+RATIO = 10 / 316
 
 # minimum contour area in pixels to ignore noise
 MIN_AREA = 2000
@@ -107,7 +107,7 @@ def main(shared_h=None):
 
     global mog2, _bbox_history, FLOOR_Y
 
-    cap = cv2.VideoCapture(2)
+    cap = cv2.VideoCapture(1,cv2.CAP_DSHOW)
 
     if not cap.isOpened():
         print("Error: could not open camera.")
@@ -161,10 +161,14 @@ def main(shared_h=None):
 
             if contour is not None:
                 cv2.drawContours(frame, [contour], -1, (255, 80, 0), 1)
-                draw_side_bbox(frame, contour, RATIO, FLOOR_Y)
+                h_cm = draw_side_bbox(frame, contour, RATIO, FLOOR_Y)  # capture return value
+                if shared_h is not None:                               # write to shared memory
+                    shared_h["value"] = h_cm
             else:
-                cv2.putText(frame, "No object detected  (R to reset background)",
-                            (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
+                if shared_h is not None:                               # reset when no object
+                    shared_h["value"] = 0.0
+            cv2.putText(frame, "No object detected  (R to reset background)",
+            (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
 
         if FLOOR_Y is not None:
             cv2.line(frame, (0, FLOOR_Y), (frame.shape[1], FLOOR_Y), (0, 165, 255), 1)

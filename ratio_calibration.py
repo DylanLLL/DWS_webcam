@@ -14,7 +14,7 @@ def draw_circle(event, x, y, flags, param):
 cv2.namedWindow("Frame")
 cv2.setMouseCallback("Frame", draw_circle)
 
-cap = cv2.VideoCapture(0,cv2.CAP_DSHOW)
+cap = cv2.VideoCapture(2,cv2.CAP_DSHOW)
 
 CAMERA_WIDTH  = 1280
 CAMERA_HEIGHT = 720

@@ -4,11 +4,11 @@ import numpy as np
 from collections import deque
 import multiprocessing
 
-RATIO = 23 / 370
+RATIO = 21.1 / 299
 
 # physical distance from top camera lens to table surface, in cm.
 # Measure this once with a ruler.
-D_FLOOR_TOP = 60.0    
+D_FLOOR_TOP = 100   
 
 # minimum contour area in pixels to ignore noise
 MIN_AREA = 2000
@@ -158,7 +158,7 @@ def main(shared_h=None):
                         (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.65, (0, 255, 0), 2)
         else:
             # NEW: read H from side camera; default to 0.0 if unavailable
-            h_object = shared_h.value if shared_h is not None else 0.0 
+            h_object = shared_h["value"] if shared_h is not None else 0.0
 
             # NEW: compute corrected ratio based on object height
             ratio_corrected = RATIO * (1.0 - h_object / D_FLOOR_TOP)     
