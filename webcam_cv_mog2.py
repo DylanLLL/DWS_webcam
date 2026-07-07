@@ -4,7 +4,7 @@ import numpy as np
 from collections import deque
 import multiprocessing
 
-RATIO = 21.1 / 299
+RATIO = 7.5 / 106
 
 # physical distance from top camera lens to table surface, in cm.
 # Measure this once with a ruler.
@@ -114,7 +114,7 @@ def main(shared_h=None):
 
     global mog2, _bbox_history
 
-    cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+    cap = cv2.VideoCapture(2, cv2.CAP_DSHOW)
 
     if not cap.isOpened():
         print("Error: could not open camera.")

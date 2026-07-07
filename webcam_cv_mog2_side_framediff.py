@@ -2,9 +2,10 @@
 import cv2
 import numpy as np
 from collections import deque
+from smoothing import MovingAverage
 
 # pixel to cm calibration ratio (adjust to your setup)
-RATIO = 16 / 253
+RATIO = 14.755 / 202
 
 # minimum contour area in pixels to ignore noise
 MIN_AREA = 2000
@@ -23,6 +24,9 @@ FLOOR_Y = None
 # Rolling buffer of recent axis-aligned bbox params: (x, y, w, h)
 _bbox_history = deque(maxlen=SMOOTH_FRAMES)
 
+# Final-stage moving average on the cm output, smooths out lighting/env noise
+_h_avg = MovingAverage(maxlen=15)
+
 background = None
                    
 def draw_side_bbox(frame, contour, ratio, floor_y):
@@ -39,7 +43,8 @@ def draw_side_bbox(frame, contour, ratio, floor_y):
 
     cv2.rectangle(frame, (sx, sy), (sx + sw, sy + sh), (0, 255, 0), 2)
 
-    h_cm = sh * ratio
+    h_cm_raw = sh * ratio
+    h_cm = _h_avg.update(h_cm_raw)
     d_cm = sw * ratio
 
     cx = sx + sw // 2
@@ -147,9 +152,11 @@ def main(shared_h=None):
 
                 if shared_h is not None:
                     shared_h["value"] = h_cm
+                    shared_h["ready"] = _h_avg.ready()
             else:
                 if shared_h is not None:
                     shared_h["value"] = 0.0
+                    shared_h["ready"] = False
                 cv2.putText(frame, "No object detected  (R to reset background)",
                             (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
 
@@ -165,4 +172,4 @@ def main(shared_h=None):
 
 
 if __name__ == "__main__":
-    main() 
+    main()
