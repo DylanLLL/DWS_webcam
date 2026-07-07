@@ -1,7 +1,7 @@
 # launcher.py
 import threading
 import time
-import keyboard
+import keyboard 
 import pyautogui
 import webcam_cv_mog2 as top_cam
 import webcam_cv_mog2_side as side_cam
