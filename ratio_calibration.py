@@ -2,7 +2,7 @@ import cv2
 import math 
 points = []
 
-# RATIO = 23 / 370 # real-world cm per pixel at the calibration distance (20 cm / 190 px)
+# RATIO = 7.5 / 93 # real-world cm per pixel at the calibration distance (20 cm / 190 px)
 
 def draw_circle(event, x, y, flags, param):
     global points
@@ -14,7 +14,7 @@ def draw_circle(event, x, y, flags, param):
 cv2.namedWindow("Frame")
 cv2.setMouseCallback("Frame", draw_circle)
 
-cap = cv2.VideoCapture(1,cv2.CAP_DSHOW)
+cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)  # Use camera index 0 for the calibration camera
 
 CAMERA_WIDTH  = 1280
 CAMERA_HEIGHT = 720

@@ -1,0 +1,7 @@
+# params.yaml
+dashboard_hotkey: f11
+
+# Pixel-to-cm calibration ratios, written as "numerator / denominator".
+# Edit either number directly — no need to calculate the decimal yourself.
+ratio_top: "7.5 / 93"
+ratio_side: "23 / 192"

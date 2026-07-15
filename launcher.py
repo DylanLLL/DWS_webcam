@@ -1,10 +1,27 @@
 # launcher.py
 import threading
 import time
-import keyboard 
+import yaml       # used to load the hotkey from params.yaml
+import keyboard
 import pyautogui
-import webcam_cv_mog2 as top_cam
-import webcam_cv_mog2_side as side_cam
+import webcam_cv_mog2_UPDATED as top_cam
+import webcam_cv_mog2_side_framediff as side_cam
+import pyperclip
+import re
+
+def parse_weight_from_clipboard():
+    raw = pyperclip.paste()
+    try:
+        cleaned = re.sub(r'[^0-9.]+', '', raw)
+        return float(cleaned)
+    except (ValueError, TypeError):
+        return None
+
+# CHANGED: default path now points to params.yaml instead of config.yaml
+def load_config(path="params.yaml"):
+    with open(path, "r") as f:
+        config = yaml.safe_load(f)
+    return config
 
 
 def build_output_string(shared_dims, shared_h):
@@ -15,8 +32,6 @@ def build_output_string(shared_dims, shared_h):
 
 
 def reset_dimensions(shared_dims, shared_h):
-    """Clears current values, moving-average windows, and ready flags
-    so the next object starts with a clean slate."""
     shared_dims["L"] = 0.0
     shared_dims["W"] = 0.0
     shared_dims["L_ready"] = False
@@ -29,33 +44,39 @@ def reset_dimensions(shared_dims, shared_h):
     side_cam._h_avg.window.clear()
 
 
-def dashboard_input_listener(shared_dims, shared_h, stop_event):
-    """Waits for F7. When pressed, types L/W/H into the dashboard's focused
-    field, tabbing between each, then resets values for the next object."""
+def dashboard_input_listener(shared_dims, shared_h, stop_event, hotkey):
     while not stop_event.is_set():
-        if keyboard.is_pressed('f7'):
+        if keyboard.is_pressed(hotkey):
             if shared_dims.get("L_ready") and shared_dims.get("W_ready") and shared_h.get("ready"):
                 L = f"{shared_dims['L']:.2f}"
                 W = f"{shared_dims['W']:.2f}"
                 H = f"{shared_h['value']:.2f}"
 
-                pyautogui.typewrite(L, interval=0.01)
-                pyautogui.press('tab', presses=2, interval=0.05)
-                pyautogui.typewrite(W, interval=0.01)
-                pyautogui.press('tab', presses=2, interval=0.05)
-                pyautogui.typewrite(H, interval=0.01)
+                weight = parse_weight_from_clipboard()
+                # print (f"DEBUG weight parsed: {weight}")  ## debug line (only for testing)
+                if (weight == 0.00):
+                    print("Could not read a valid weight from clipboard.")
+                    pyautogui.typewrite("Error: Weight not readable from clipboard", interval=0.01)
+                else:
+                    Wt = f"{weight:.2f}"
 
-                print(f"Entered into dashboard: L={L} W={W} H={H}")
-                reset_dimensions(shared_dims, shared_h)
+                    pyautogui.typewrite(L, interval=0.01)
+                    pyautogui.press('tab', presses=2, interval=0.05)
+                    pyautogui.typewrite(W, interval=0.01)
+                    pyautogui.press('tab', presses=2, interval=0.05)
+                    pyautogui.typewrite(H, interval=0.01)
+                    pyautogui.press('tab', presses=2, interval=0.05)
+                    pyautogui.typewrite(Wt, interval=0.01)
+
+                    print(f"Entered into dashboard: L={L} W={W} H={H} Weight={Wt}")
+                    reset_dimensions(shared_dims, shared_h)
             else:
-                print("F7 pressed but values not yet stable — ignored.")
+                print(f"{hotkey.upper()} pressed but values not yet stable — ignored.")
 
-            # Debounce: wait for key release so one press doesn't fire multiple times
-            while keyboard.is_pressed('f7'):
+            while keyboard.is_pressed(hotkey):
                 time.sleep(0.05)
 
         time.sleep(0.05)
-
 
 def monitor_output(shared_dims, shared_h, stop_event):
     last_all_ready = False
@@ -74,6 +95,10 @@ def monitor_output(shared_dims, shared_h, stop_event):
 
 
 if __name__ == "__main__":
+    # load the hotkey from params.yaml instead of hardcoding it
+    config = load_config()
+    dashboard_key = config["dashboard_hotkey"]
+
     shared_h    = {"value": 0.0, "ready": False}
     shared_dims = {"L": 0.0, "W": 0.0,
                    "L_ready": False, "W_ready": False}
@@ -83,7 +108,7 @@ if __name__ == "__main__":
     t_side      = threading.Thread(target=side_cam.main, args=(shared_h,))
     t_top       = threading.Thread(target=top_cam.main,  args=(shared_h, shared_dims))
     t_monitor   = threading.Thread(target=monitor_output, args=(shared_dims, shared_h, stop_event))
-    t_dashboard = threading.Thread(target=dashboard_input_listener, args=(shared_dims, shared_h, stop_event))
+    t_dashboard = threading.Thread(target=dashboard_input_listener, args=(shared_dims, shared_h, stop_event, dashboard_key))
 
     t_side.start()
     t_top.start()
@@ -96,3 +121,7 @@ if __name__ == "__main__":
     stop_event.set()
     t_monitor.join()
     t_dashboard.join()
+
+    weight = parse_weight_from_clipboard()
+    print(f"DEBUG weight parsed: {weight}")
+    

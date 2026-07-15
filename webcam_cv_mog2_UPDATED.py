@@ -1,10 +1,11 @@
-# webcam_cv_mog2.py - PRESS B TO CAPTURE BACKGROUND, THEN PLACE OBJECT (updated method)
+# webcam_cv_mog2_UPDATED.py - PRESS B TO CAPTURE BACKGROUND, THEN PLACE OBJECT (updated method)
 import cv2
 import numpy as np
 from collections import deque
-from smoothing import MovingAverage
+from smoothing import MovingAverage, load_ratio   # CHANGED: added load_ratio import
 
-RATIO = 7.5 / 106
+# real-world cm per pixel at the calibration distance, loaded from params.yaml
+RATIO = load_ratio("ratio_top")   # CHANGED: was RATIO = 29.7 / 381
 
 D_FLOOR_TOP = 100
 
@@ -53,12 +54,11 @@ def segment_largest_object(frame):
 
     return cv2.convexHull(largest)
 
-
 def draw_oriented_bbox(frame, contour, ratio, shared_dims=None):
     rect = cv2.minAreaRect(contour)
     cx_raw, cy_raw = rect[0]
     w_raw, l_raw   = rect[1]
-    angle_raw      = rect[2]
+    angle_raw      = rect[2] 
 
     if w_raw < l_raw:
         w_raw, l_raw = l_raw, w_raw
@@ -96,7 +96,7 @@ def main(shared_h=None, shared_dims=None):
 
     global background, _bbox_history
 
-    cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+    cap = cv2.VideoCapture(0, cv2.CAP_DSHOW) #which camera to use
 
     if not cap.isOpened():
         print("Error: could not open camera.")
