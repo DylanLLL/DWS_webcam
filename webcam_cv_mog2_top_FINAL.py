@@ -1,11 +1,15 @@
-# webcam_cv_mog2_UPDATED.py - PRESS B TO CAPTURE BACKGROUND, THEN PLACE OBJECT (updated method)
+# webcam_cv_mog2_top_FINAL.py - PRESS B TO CAPTURE BACKGROUND, THEN PLACE OBJECT (updated method)
 import cv2
 import numpy as np
 from collections import deque
-from smoothing import MovingAverage, load_ratio   # CHANGED: added load_ratio import
+from smoothing import MovingAverage
+from params_utils import load_ratio, load_camera_index
 
 # real-world cm per pixel at the calibration distance, loaded from params.yaml
-RATIO = load_ratio("ratio_top")   # CHANGED: was RATIO = 29.7 / 381
+RATIO = load_ratio("ratio_top")
+
+# NEW: camera index loaded from params.yaml
+CAMERA_INDEX = load_camera_index("camera_index_top")
 
 D_FLOOR_TOP = 100
 
@@ -96,10 +100,10 @@ def main(shared_h=None, shared_dims=None):
 
     global background, _bbox_history
 
-    cap = cv2.VideoCapture(0, cv2.CAP_DSHOW) #which camera to use
+    cap = cv2.VideoCapture(CAMERA_INDEX, cv2.CAP_DSHOW)   # CHANGED: was hardcoded 0
 
     if not cap.isOpened():
-        print("Error: could not open camera.")
+        print(f"Error: could not open camera at index {CAMERA_INDEX}.")
         return
 
     if CAMERA_WIDTH and CAMERA_HEIGHT:

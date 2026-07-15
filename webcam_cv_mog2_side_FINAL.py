@@ -1,11 +1,15 @@
-# webcam_cv_mog2_side_framediff.py — measures object height from a side view using frame difference background subtraction.
+# webcam_cv_mog2_side_FINAL.py — measures object height from a side view using frame difference background subtraction.
 import cv2
 import numpy as np
 from collections import deque
-from smoothing import MovingAverage, load_ratio   # CHANGED: added load_ratio import
+from smoothing import MovingAverage
+from params_utils import load_ratio, load_camera_index
 
 # pixel to cm calibration ratio, loaded from params.yaml
-RATIO = load_ratio("ratio_side")   # CHANGED: was RATIO = 14.755 / 202
+RATIO = load_ratio("ratio_side")
+
+# NEW: camera index loaded from params.yaml
+CAMERA_INDEX = load_camera_index("camera_index_side")
 
 # minimum contour area in pixels to ignore noise
 MIN_AREA = 2000
@@ -92,10 +96,10 @@ def main(shared_h=None):
 
     global background, _bbox_history, FLOOR_Y
 
-    cap = cv2.VideoCapture(1, cv2.CAP_DSHOW) #which camera to use
+    cap = cv2.VideoCapture(CAMERA_INDEX, cv2.CAP_DSHOW)   # CHANGED: was hardcoded 1
 
     if not cap.isOpened():
-        print("Error: could not open camera.")
+        print(f"Error: could not open camera at index {CAMERA_INDEX}.")
         return
 
     if CAMERA_WIDTH and CAMERA_HEIGHT:

@@ -1,7 +1,15 @@
 # params.yaml
+# EDIT THIS:
 dashboard_hotkey: f11
 
 # Pixel-to-cm calibration ratios, written as "numerator / denominator".
-# Edit either number directly — no need to calculate the decimal yourself.
+# EDIT THIS:
 ratio_top: "7.5 / 93"
 ratio_side: "23 / 192"
+
+# Camera device indices. If cameras stop being detected correctly after
+# a reboot, USB replug, or on a different PC, run the camera enumeration
+# check and update these numbers accordingly.
+# EDIT THIS:
+camera_index_top: 0
+camera_index_side: 1
