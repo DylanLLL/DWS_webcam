@@ -79,11 +79,11 @@ def draw_oriented_bbox(frame, contour, ratio, shared_dims=None):
 
     cv2.drawContours(frame, [box], 0, (0, 255, 0), 2)
 
-    w_cm_raw = w_px * ratio
+    w_cm_raw = w_px * ratio 
     l_cm_raw = l_px * ratio
 
-    w_cm = _w_avg.update(w_cm_raw)
-    l_cm = _l_avg.update(l_cm_raw)
+    w_cm = _w_avg.update(w_cm_raw) 
+    l_cm = _l_avg.update(l_cm_raw) 
 
     cv2.putText(frame, f"W: {w_cm:.2f} cm", (int(cx) - 70, int(cy) - 12),
                 cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
@@ -101,6 +101,10 @@ def main(shared_h=None, shared_dims=None):
     global background, _bbox_history
 
     cap = cv2.VideoCapture(CAMERA_INDEX, cv2.CAP_DSHOW)   # CHANGED: was hardcoded 0
+    cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, -1)
+    cap.set(cv2.CAP_PROP_EXPOSURE, -4)
+    cap.set(cv2.CAP_PROP_AUTO_WB, 0)
+    cap.set(cv2.CAP_PROP_ISO_SPEED, 200)
 
     if not cap.isOpened():
         print(f"Error: could not open camera at index {CAMERA_INDEX}.")
@@ -143,7 +147,7 @@ def main(shared_h=None, shared_dims=None):
                         (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
         else:
             l_object = shared_h["value"] if shared_h is not None else 0.0
-            ratio_corrected = RATIO * (1.0 - l_object / D_FLOOR_TOP)
+            ratio_corrected = RATIO * (1.0 - l_object / D_FLOOR_TOP) # corrected ratio based on object height (parallax effect)
 
             contour = segment_largest_object(frame)
 

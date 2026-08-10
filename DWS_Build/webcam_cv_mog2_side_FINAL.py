@@ -97,6 +97,10 @@ def main(shared_h=None):
     global background, _bbox_history, FLOOR_Y
 
     cap = cv2.VideoCapture(CAMERA_INDEX, cv2.CAP_DSHOW)   # CHANGED: was hardcoded 1
+    cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, -1)
+    cap.set(cv2.CAP_PROP_EXPOSURE, -2.5)
+    cap.set(cv2.CAP_PROP_AUTO_WB, 0)
+    cap.set(cv2.CAP_PROP_ISO_SPEED, 400)
 
     if not cap.isOpened():
         print(f"Error: could not open camera at index {CAMERA_INDEX}.")

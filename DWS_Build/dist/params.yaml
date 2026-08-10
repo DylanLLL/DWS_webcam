@@ -8,10 +8,10 @@ kill_hotkey: f12
 # check and update these numbers accordingly.
 # EDIT THIS:
 camera_index_top: 0
-camera_index_side: 1
+camera_index_side: 2
 
 # Pixel-to-cm calibration ratios, written as "numerator / denominator".
 # EDIT THIS:
-ratio_top: "7.5 / 93"
-ratio_side: "23 / 192"
+ratio_top: "30 / 337"
+ratio_side: "26 / 348"
 
