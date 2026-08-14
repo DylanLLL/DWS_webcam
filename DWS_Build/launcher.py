@@ -7,8 +7,8 @@ import keyboard
 import pyautogui
 import pyperclip
 import re
-import webcam_cv_mog2_top_FINAL as top_cam
-import webcam_cv_mog2_side_FINAL as side_cam
+import webcam_cv_sbd_top_FINAL as top_cam
+import webcam_cv_sbd_side_FINAL as side_cam
 
 
 def parse_weight_from_clipboard():

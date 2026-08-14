@@ -46,10 +46,27 @@ def segment_largest_object(frame):
     #  - it's darker than the background (ratio < 1) but not black (ratio > some floor)
     #  - hue barely changed
     #  - saturation barely changed
-    SHADOW_V_LOW  = 0.4   # tune: how much darker a shadow can be (too low = misses light shadows)
-    SHADOW_V_HIGH = 0.95  # tune: how close to unchanged brightness still counts
-    SHADOW_S_DIFF = 40    # tune: max allowed saturation change for "shadow"
+    
+    SHADOW_V_LOW  = 0.4   
+    # Darkness floor (0.0–1.0). Lower = allows darker shadows (risks dark objects).
+    # Higher = only light shadows count (heavy shadows may leak through).
+    # Step size: 0.05–0.1
+    # Tune in steps of 0.05–0.1.
+
+    SHADOW_V_HIGH = 0.95
+    # Darkness ceiling (0.0–1.0, must stay above V_LOW). Lower = ignores faint
+    # shadows. Higher = catches faint shadows (may also catch frame noise).
+    # Step size: 0.02–0.05
+  
+    SHADOW_S_DIFF = 40    # tune: max allowed saturation change for "shadow" 
+    # Max saturation change allowed (0–255). Lower = stricter, safer for object
+    # edges. Higher = catches more shadow, risks eating colored objects.
+    # Step size: 10–15
+       
     SHADOW_H_DIFF = 25    # tune: max allowed hue change for "shadow"
+    # Max hue change allowed (0–179). Lower = stricter, safer for object edges.
+    # Higher = catches noisier shadows, risks eating differently-colored objects.
+    # Step size: 5–10
 
     h_diff = np.abs(h_frame - h_bg)
     s_diff = np.abs(s_frame - s_bg)
