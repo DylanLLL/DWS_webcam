@@ -1,4 +1,4 @@
-# params_utils.py 
+# params_utils.py
 # Shared helpers for reading configuration values from params.yaml.
 
 import yaml
@@ -20,3 +20,11 @@ def load_camera_index(key, path="params.yaml"):
         config = yaml.safe_load(f)
 
     return int(config[key])
+
+
+def load_float(key, path="params.yaml"):
+    """Loads a plain numeric value (not a fraction) from params.yaml."""
+    with open(path, "r") as f:
+        config = yaml.safe_load(f)
+
+    return float(config[key])

@@ -116,7 +116,7 @@ if __name__ == "__main__":
     dashboard_key = config["dashboard_hotkey"]
     kill_key = config["kill_hotkey"]   # NEW
 
-    shared_h    = {"value": 0.0, "ready": False}
+    shared_h    = {"value": 0.0, "ready": False, "offset": 0.0} #added offset
     shared_dims = {"L": 0.0, "W": 0.0,
                    "L_ready": False, "W_ready": False}
 
@@ -143,3 +143,16 @@ if __name__ == "__main__":
     stop_event.set()
     t_monitor.join()
     t_dashboard.join()
+
+def reset_dimensions(shared_dims, shared_h):
+    shared_dims["L"] = 0.0
+    shared_dims["W"] = 0.0
+    shared_dims["L_ready"] = False
+    shared_dims["W_ready"] = False
+    shared_h["value"] = 0.0
+    shared_h["ready"] = False
+    shared_h["offset"] = 0.0   # NEW
+
+    top_cam._l_avg.window.clear()
+    top_cam._w_avg.window.clear()
+    side_cam._h_avg.window.clear()

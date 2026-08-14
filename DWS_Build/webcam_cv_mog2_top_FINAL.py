@@ -31,15 +31,45 @@ def segment_largest_object(frame):
     if background is None:
         return None
 
+    # Convert both to HSV for shadow-aware comparison
+    hsv_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV).astype(np.float32)
+    hsv_bg    = cv2.cvtColor(background, cv2.COLOR_BGR2HSV).astype(np.float32)
+
+    h_frame, s_frame, v_frame = cv2.split(hsv_frame)
+    h_bg, s_bg, v_bg = cv2.split(hsv_bg)
+
+    # Avoid divide-by-zero on very dark background pixels
+    v_bg_safe = np.where(v_bg == 0, 1, v_bg)
+    v_ratio = v_frame / v_bg_safe
+
+    # A pixel is "shadow-like" if:
+    #  - it's darker than the background (ratio < 1) but not black (ratio > some floor)
+    #  - hue barely changed
+    #  - saturation barely changed
+    SHADOW_V_LOW  = 0.4   # tune: how much darker a shadow can be (too low = misses light shadows)
+    SHADOW_V_HIGH = 0.95  # tune: how close to unchanged brightness still counts
+    SHADOW_S_DIFF = 40    # tune: max allowed saturation change for "shadow"
+    SHADOW_H_DIFF = 25    # tune: max allowed hue change for "shadow"
+
+    h_diff = np.abs(h_frame - h_bg)
+    s_diff = np.abs(s_frame - s_bg)
+
+    is_shadow = (
+        (v_ratio >= SHADOW_V_LOW) & (v_ratio <= SHADOW_V_HIGH) &
+        (s_diff <= SHADOW_S_DIFF) &
+        (h_diff <= SHADOW_H_DIFF)
+    )
+
+    # Standard grayscale diff, same as before
     gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     gray_bg    = cv2.cvtColor(background, cv2.COLOR_BGR2GRAY)
-
     gray_frame = cv2.GaussianBlur(gray_frame, (5, 5), 0)
     gray_bg    = cv2.GaussianBlur(gray_bg,    (5, 5), 0)
-
     diff = cv2.absdiff(gray_bg, gray_frame)
-
     _, thresh = cv2.threshold(diff, 30, 255, cv2.THRESH_BINARY)
+
+    # NEW: zero out anything classified as shadow, even if it passed the diff threshold
+    thresh[is_shadow] = 0
 
     kernel = np.ones((5, 5), np.uint8)
     thresh = cv2.morphologyEx(thresh, cv2.MORPH_OPEN,  kernel)
@@ -101,8 +131,8 @@ def main(shared_h=None, shared_dims=None):
     global background, _bbox_history
 
     cap = cv2.VideoCapture(CAMERA_INDEX, cv2.CAP_DSHOW)   # CHANGED: was hardcoded 0
-    cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, -1)
-    cap.set(cv2.CAP_PROP_EXPOSURE, -4)
+    cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, 0.25)
+    cap.set(cv2.CAP_PROP_EXPOSURE, -2) # lower index means brighter image, higher index means darker image
     cap.set(cv2.CAP_PROP_AUTO_WB, 0)
     cap.set(cv2.CAP_PROP_ISO_SPEED, 200)
 
@@ -154,14 +184,26 @@ def main(shared_h=None, shared_dims=None):
             if contour is not None:
                 cv2.drawContours(frame, [contour], -1, (255, 80, 0), 1)
                 draw_oriented_bbox(frame, contour, ratio_corrected, shared_dims)
+
+                # NEW: measure offset from the reference edge (assumed x=0,
+                # the left edge of frame — adjust if your tape line is on a different edge) to the object's near edge.
+                bx, by, bw, bh = cv2.boundingRect(contour)
+                offset_px = bx
+                offset_cm = offset_px * ratio_corrected
+                if shared_h is not None:
+                    shared_h["offset"] = offset_cm
                 cv2.putText(frame, f"obj H: {l_object:.2f} cm",
                             (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 0), 2)
                 cv2.putText(frame, f"ratio: {ratio_corrected:.5f}",
-                            (10, 58), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 0), 2)
+                            (10, 58), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (2455, 255, 0), 2)
+                cv2.putText(frame, f"offset: {offset_cm:.2f} cm",   # NEW: on-screen debug
+                            (10, 86), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 0), 2)
             else:
                 if shared_dims is not None:
                     shared_dims["L_ready"] = False
                     shared_dims["W_ready"] = False
+                if shared_h is not None:
+                    shared_h["offset"] = 0.0   # NEW: clear stale offset when nothing's detected
                 cv2.putText(frame, "No object detected  (R to reset background)",
                             (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
 
