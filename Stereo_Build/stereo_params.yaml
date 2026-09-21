@@ -61,3 +61,28 @@ min_views_stereo: 15
 
 # Reprojection RMS above this (in pixels) is reported as a bad calibration.
 max_rms_px: 0.5
+
+# ---------------------------------------------------------------------------
+# Stereo matching
+# ---------------------------------------------------------------------------
+# Tallest parcel you expect to measure, in cm. With nominal_height_cm this
+# sets the disparity search range: the conveyor is the farthest surface (the
+# smallest disparity) and the top of the tallest parcel is the nearest (the
+# largest). Searching wider than necessary costs time and invites mismatches.
+# EDIT THIS:
+max_parcel_height_cm: 60
+
+# Matching window, in pixels. Must be odd. Larger = smoother and more robust
+# on low-texture surfaces like plain cardboard, but blurs depth across the
+# package edges. 5-11 is the useful range.
+sgbm_block_size: 7
+
+# Margin by which the best match must beat the runner-up, as a percentage.
+# Higher = fewer but more trustworthy matches. Raise it if you see noisy
+# depth on flat surfaces; lower it if too much of the package goes unmatched.
+sgbm_uniqueness: 10
+
+# Removes small isolated blobs of disparity that disagree with their
+# surroundings — almost always mismatches rather than real geometry.
+sgbm_speckle_window: 100
+sgbm_speckle_range: 2

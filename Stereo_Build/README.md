@@ -150,11 +150,23 @@ Horizontal lines are drawn across both rectified views. A feature must land on
 the same line in both — that is what reduces the disparity search to one
 dimension. Vertical drift between the views means a bad calibration; redo it.
 
-### 6. Validate against known objects
+### 6. Check depth, then validate against known objects
+
+```
+py stereo_check.py
+```
+
+Drag a box over bare conveyor, press F to set it as the floor reference, then
+drag over the top face of an object of known height. Watch the DENSITY figure:
+it is the fraction of pixels that matched, and on low-texture surfaces it is
+what decides whether this approach works at all.
 
 With the side camera gone there is no independent height reading to check
-against, so measure a few rigid objects of accurately known size and confirm
-the numbers. Do this before trusting the system on real packages.
+against, so validate against rigid objects of accurately known size before
+trusting the system on real packages.
+
+**`TESTING.md` has the full staged procedure**, with the number to expect at
+each stage and what to do when one fails.
 
 ## Files
 
@@ -163,6 +175,9 @@ the numbers. Do this before trusting the system on real packages.
 | `calibrate.py` | Calibration tool. Sub-commands: `board`, `probe`, `intrinsics`, `stereo`, `verify`. Replaces `ratio_calibration.py`. |
 | `camera_config.py` | Opens cameras with identical locked settings. Used by both calibration and measurement so the two cannot drift apart. |
 | `stereo_params.yaml` | Board geometry, measured square size, camera indices, locked capture settings. |
+| `stereo_check.py` | Diagnostic: live disparity/depth view, match density, and plane fitting for distance, flatness and height. Run this before building anything else on top. |
+| `stereo_depth.py` | Rectification, disparity and plane fitting. Shared by the diagnostic and the eventual measurement pipeline, so validating one validates the other. |
+| `TESTING.md` | Staged bring-up and test procedure, with the number to expect at each stage. |
 | `calib/` | Calibration output (git-ignored — specific to one physical rig). |
 
 ## Capture settings, and why they are locked
@@ -194,6 +209,37 @@ segmentation for length and width, back-projecting it onto the now
 exactly-known plane. If dense depth turns out to be necessary, a visible-light
 speckle projector is the standard fix (webcams have IR-cut filters, so an IR
 pattern would need the filter physically removed).
+
+## Why the cameras are vertical and parallel, not angled
+
+**Converging them** (toeing them in toward each other) gains nothing.
+`stereoRectify` computes virtual rotations that make the two image planes
+coplanar, so a converged rig is rectified back to a parallel one anyway — and
+the keystone distortion that convergence introduces shrinks the valid
+rectified region, costing working area. Small *accidental* misalignment is
+fine; that is what the extrinsics are for.
+
+**Tilting the whole rig off-vertical** trades away more than it gains. Stereo
+depth error acts along the camera ray, so tilting splits that error into a
+vertical part and a horizontal part. The vertical part shrinks slightly — and
+the horizontal part, which was zero, starts contaminating length and width:
+
+| Tilt | Height error | L/W error vs vertical |
+|---|---|---|
+| 0° | 0.300 cm | 1.00x |
+| 10° | 0.295 cm | 1.16x |
+| 20° | 0.282 cm | 1.53x |
+| 30° | 0.260 cm | 1.96x |
+
+At 20° you gain 6% on height and pay 53% on length and width. Length and width
+come from image edges, which are far more precise than disparity, so tilting
+injects the noisier measurement into the more accurate one.
+
+A tilted pair would also see one side face — but for a cuboid on a flat
+surface that adds no information. The top face's outline already gives length
+and width exactly, and the floor-to-top-plane distance gives height. Tilting
+would help only for non-cuboid parcels, and it costs worse self-occlusion
+(a tall box hides the floor behind it) and a wider disparity search.
 
 ## Limits of a top-down rig
 
