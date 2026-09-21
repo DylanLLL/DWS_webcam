@@ -1,0 +1,5 @@
+# Calibration output is specific to one physical rig — the exact two camera
+# units, in their exact mounted positions. Committing it would let a
+# calibration from one rig be silently applied to another, which produces
+# plausible-looking but wrong measurements. Regenerate it per rig instead.
+calib/
