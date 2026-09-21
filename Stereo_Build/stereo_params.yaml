@@ -1,0 +1,63 @@
+# stereo_params.yaml — configuration for the stereoscopic (dual top-mounted) DWS.
+#
+# This file replaces the pixel-to-cm ratios used by the original single-camera
+# system. Scale now comes from the calibration target, not from a hand-clicked
+# ratio, so there is no "ratio_top" / "ratio_side" here.
+
+# ---------------------------------------------------------------------------
+# Calibration target
+# ---------------------------------------------------------------------------
+# Inner CORNER counts, not square counts. A board printed with 10x7 squares
+# has 9x6 inner corners. Count the interior crossings, not the squares.
+# EDIT THIS:
+board_cols: 9
+board_rows: 6
+
+# Size of one square, in cm, as MEASURED WITH CALIPERS on the printed sheet.
+# Do NOT use the nominal size from the PDF. Home printers silently rescale by
+# 2-4% ("fit to page"), and this number sets the absolute scale of every
+# measurement the system will ever make. Measure several squares and average.
+# EDIT THIS:
+square_size_cm: 2.50
+
+# ---------------------------------------------------------------------------
+# Cameras
+# ---------------------------------------------------------------------------
+# Device indices for the two top-mounted cameras. "left" and "right" are as
+# seen in the camera images themselves, not from where you stand. Run
+# "py calibrate.py probe" to see which index is which.
+# EDIT THIS:
+camera_index_left: 0
+camera_index_right: 1
+
+frame_width: 1280
+frame_height: 720
+
+# Locked capture settings. Both cameras MUST use identical values, and the
+# same values during calibration and during measurement -- changing exposure
+# on an autofocus camera can shift focus and invalidate the calibration.
+exposure: -2
+auto_wb: 0
+autofocus: 0
+
+# ---------------------------------------------------------------------------
+# Rig geometry (used only for sanity checks, never for measurement)
+# ---------------------------------------------------------------------------
+# Nominal centre-to-centre spacing of the two cameras, in cm. The real
+# baseline is recovered by stereo calibration; this value is only used to warn
+# you if the recovered baseline is wildly different, which almost always means
+# square_size_cm is wrong.
+nominal_baseline_cm: 15.0
+
+# Nominal camera height above the conveyor surface, in cm. Sanity checks only.
+nominal_height_cm: 100.0
+
+# ---------------------------------------------------------------------------
+# Calibration quality gates
+# ---------------------------------------------------------------------------
+# Minimum number of accepted board views before calibration is allowed.
+min_views_intrinsics: 15
+min_views_stereo: 15
+
+# Reprojection RMS above this (in pixels) is reported as a bad calibration.
+max_rms_px: 0.5
